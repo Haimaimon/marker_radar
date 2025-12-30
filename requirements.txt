@@ -13,14 +13,11 @@ yfinance>=0.2.28          # Yahoo Finance (fallback, no API key needed)
 # polygon-api-client      # Polygon (optional, uncomment if using)
 
 # Telegram notifications
-# No extra package needed - uses requests
+tenacity>=8.2.3           # Retry logic for Telegram notifier
 
 # Data analysis (optional, for ticker filter)
 pandas>=2.0.0             # For downloading S&P 500 list
-# lxml>=4.9.0             # For pandas HTML parsing (optional)
-
-# Async/performance (optional)
-# tenacity>=8.2.3         # Retry logic (already included in notifier)
+lxml>=4.9.0               # For pandas HTML parsing
 
 # Database (built-in)
 # sqlite3 is built into Python
