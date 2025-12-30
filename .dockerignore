@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database (will be created in container)
+*.db
+*.db-journal
+
+# Cache files
+ticker_cache.json
+seen_items.json
+
+# Logs
+*.log
+
+# Environment files (will be set via platform)
+.env
+.env.local
+
+# Git
+.git/
+.gitignore
+
+# Documentation (optional - can include if needed)
+*.md
+!README.md
+
+# Test files
+test_*.py
+*_test.py
+
+# Temporary files
+*.tmp
+*.bak
+high_score_articles.*
+

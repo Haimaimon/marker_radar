@@ -1,0 +1,89 @@
+====================================================================================================
+RECOMMENDED SETTINGS FOR YOUR MARKET RADAR
+Based on analysis of your missed articles
+====================================================================================================
+
+📊 YOUR CURRENT SITUATION:
+- Total articles with high score: 12
+- Passed validation: 7 (58.3%)
+- MISSED: 5 (41.7%)
+
+Main reasons for missed articles:
+  • Gap too small: 0.12% - 0.88% (you need 4.0%)
+  • No volume data available
+  • No price data available
+
+====================================================================================================
+💡 RECOMMENDATION: Lower your validation thresholds
+====================================================================================================
+
+Open your .env file and change these lines:
+
+OPTION 1: Lower threshold (BALANCED - RECOMMENDED)
+--------------------------------------------------
+ENABLE_MARKET_VALIDATION=true
+MIN_GAP_PCT=0.5      # Down from 4.0
+MIN_VOL_SPIKE=1.0    # Down from 1.8
+VERBOSE_LOGGING=true
+
+Result: Will catch most articles, including small moves
+Risk: Slightly more false positives
+
+
+OPTION 2: Disable validation (CATCH EVERYTHING)
+------------------------------------------------
+ENABLE_MARKET_VALIDATION=false
+MIN_GAP_PCT=4.0      # Not used when disabled
+MIN_VOL_SPIKE=1.8    # Not used when disabled
+VERBOSE_LOGGING=true
+
+Result: Every article with score >= 70 will notify
+Risk: More noise, but you won't miss anything
+
+
+OPTION 3: Keep current (CONSERVATIVE)
+--------------------------------------
+ENABLE_MARKET_VALIDATION=true
+MIN_GAP_PCT=4.0
+MIN_VOL_SPIKE=1.8
+
+Result: Only strong market reactions
+Risk: You'll miss good articles (like you did today)
+
+====================================================================================================
+📝 HOW TO APPLY:
+====================================================================================================
+
+1. Open your .env file:
+   notepad .env
+
+2. Find these lines:
+   ENABLE_MARKET_VALIDATION=...
+   MIN_GAP_PCT=...
+   MIN_VOL_SPIKE=...
+
+3. Change them according to one of the options above
+
+4. Save and restart:
+   python app.py
+
+====================================================================================================
+🔍 MONITORING:
+====================================================================================================
+
+After running for a day, check again:
+  python check_missed_articles.py 1
+  python analyze_validation_settings.py 1
+  python export_high_score_articles.py 1
+
+Then fine-tune if needed.
+
+====================================================================================================
+📚 MORE INFO:
+====================================================================================================
+
+Full guide: VALIDATION_GUIDE.md
+Quick start: QUICK_START_VALIDATION.md
+
+====================================================================================================
+

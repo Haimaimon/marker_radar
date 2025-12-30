@@ -1,0 +1,31 @@
+# Fly.io deployment configuration
+app = "market-radar-bot"
+primary_region = "iad"  # Washington DC (change to your preferred region)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  POLL_SECONDS = "30"
+  MIN_IMPACT_SCORE = "70"
+  VERBOSE_LOGGING = "true"
+  ONLY_TODAY_NEWS = "true"
+  ENABLE_TICKER_FILTER = "true"
+  ENABLE_MARKET_VALIDATION = "true"
+  MIN_GAP_PCT = "0.5"
+  MIN_VOL_SPIKE = "1.0"
+  ENABLE_SEC_FILTERED = "true"
+
+# No HTTP service needed for background worker
+# [[services]]
+#   http_checks = []
+#   internal_port = 8080
+
+[checks]
+  [checks.db_exists]
+    grace_period = "10s"
+    interval = "60s"
+    method = "exec"
+    timeout = "5s"
+    command = ["python", "-c", "import os; exit(0 if os.path.exists('market_radar.db') else 1)"]
+
