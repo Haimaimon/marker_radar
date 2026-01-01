@@ -85,14 +85,29 @@ class SignalsIntegration:
                     news_time = datetime.now()
             
             # Generate signal
+            # Note: MarketSnapshot doesn't have high/low data, so we estimate based on price movement
+            # TODO: Future improvement - fetch actual OHLC data from provider for accurate high/low
+            current_price = snapshot.price
+            prev_close = snapshot.prev_close if snapshot.prev_close else current_price
+            
+            # Estimate high/low from price movement (rough approximation)
+            # This provides reasonable estimates for signal generation
+            if current_price and prev_close:
+                price_change = abs(current_price - prev_close)
+                estimated_high = max(current_price, prev_close) + (price_change * 0.1)
+                estimated_low = min(current_price, prev_close) - (price_change * 0.05)
+            else:
+                estimated_high = current_price
+                estimated_low = current_price
+            
             signal = self.signal_engine.analyze_opportunity(
                 ticker=item.ticker,
-                current_price=snapshot.price,
-                prev_close=snapshot.prev_close,
-                high_today=snapshot.high,
-                low_today=snapshot.low,
-                volume=snapshot.volume,
-                avg_volume=snapshot.avg_volume_10d,
+                current_price=current_price,
+                prev_close=prev_close,
+                high_today=estimated_high,
+                low_today=estimated_low,
+                volume=int(snapshot.volume) if snapshot.volume else None,
+                avg_volume=int(snapshot.avg_volume_10d) if snapshot.avg_volume_10d else None,
                 float_shares=None,  # TODO: Get from data provider
                 outstanding_shares=None,  # TODO: Get from data provider
                 headline=item.title,
