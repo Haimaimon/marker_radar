@@ -18,6 +18,7 @@ from core.dedup import make_uid
 from core.scoring import score
 from core.ticker_extraction import extract_ticker
 from core.validation import validate_market_impact
+from core.stock_filter import is_stock_market_related
 
 from market_data.yfinance_provider import YFinanceProvider
 from market_data.market_data_manager import MarketDataManager, ProviderType
@@ -211,6 +212,7 @@ def main():
                 "fetched": 0,
                 "duplicates": 0,
                 "new": 0,
+                "not_stock_related": 0,  # NEW!
                 "no_ticker": 0,
                 "low_score": 0,
                 "high_score": 0,
@@ -255,6 +257,14 @@ def main():
                         continue
                 
                 stats["new"] += 1
+
+                # 0.5) Stock Market Relevance Check (NEW!)
+                is_relevant, relevance_reason = is_stock_market_related(item.title, item.summary)
+                if not is_relevant:
+                    stats["not_stock_related"] += 1
+                    if settings.verbose_logging:
+                        logger.debug(f"🚫 NOT STOCK-RELATED: {item.title[:60]}... | Reason: {relevance_reason}")
+                    continue  # Skip this article
 
                 # 1) Ticker Extraction
                 item.ticker = extract_ticker(item.title, item.summary)
@@ -338,6 +348,8 @@ def main():
             # Print poll summary
             logger.info(f"📊 Poll #{poll_count} Summary:")
             logger.info(f"   Fetched: {stats['fetched']} | New: {stats['new']} | Duplicates: {stats['duplicates']}")
+            if stats['not_stock_related'] > 0:
+                logger.info(f"   🚫 Not Stock-Related: {stats['not_stock_related']}")
             if stats['no_ticker'] > 0:
                 logger.info(f"   No Ticker: {stats['no_ticker']}")
             logger.info(f"   Low Score: {stats['low_score']} | High Score: {stats['high_score']}")
