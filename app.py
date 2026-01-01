@@ -116,6 +116,25 @@ def main():
         logger.info(f"   Cache age: {stats_filter['cache_age_hours']:.1f}h, Valid: {stats_filter['cache_valid']}")
     else:
         logger.info("🎯 Ticker filter disabled - all tickers allowed")
+    
+    # Initialize Trading Signals (NEW - optional, doesn't affect existing system)
+    signals_integration = None
+    if settings.enable_trading_signals:
+        try:
+            from signals import SignalEngine, SignalsIntegration
+            signal_engine = SignalEngine()
+            signals_integration = SignalsIntegration(
+                signal_engine=signal_engine,
+                market_data=md_manager,
+                min_signal_confidence=settings.signals_min_confidence,
+                enabled=True,
+            )
+            logger.info(f"📊 Trading Signals enabled (min_confidence={settings.signals_min_confidence}%, style={settings.signals_style})")
+        except Exception as e:
+            logger.error(f"Failed to initialize Trading Signals: {e}")
+            signals_integration = None
+    else:
+        logger.info("📊 Trading Signals disabled")
 
     # 1) News RSS Sources (verified working - tested 2025-12-29)
     rss_sources = [
@@ -344,6 +363,30 @@ def main():
                     stats["notified"] += 1
                     for n in notifiers:
                         n.notify(item)
+                    
+                    # 5) Generate Trading Signal (NEW - optional, doesn't affect existing flow)
+                    if signals_integration and signals_integration.enabled:
+                        try:
+                            signal = signals_integration.process_news_item(item)
+                            
+                            if signal and signals_integration.should_send_signal(signal):
+                                # Format signal message
+                                signal_message = signals_integration.format_signal_message(
+                                    signal,
+                                    style=settings.signals_style
+                                )
+                                
+                                # Send signal (same notifiers as news)
+                                for n in notifiers:
+                                    if hasattr(n, 'send_html'):
+                                        n.send_html(signal_message)
+                                    else:
+                                        # Fallback for notifiers without HTML support
+                                        logger.info(signal_message)
+                                
+                                logger.info(f"📊 Trading signal sent for {signal.ticker}")
+                        except Exception as e:
+                            logger.error(f"Error generating/sending signal: {e}", exc_info=True)
             
             # Print poll summary
             logger.info(f"📊 Poll #{poll_count} Summary:")

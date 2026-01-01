@@ -54,6 +54,11 @@ class Settings:
     
     # Ticker Filtering (Noise Reduction)
     enable_ticker_filter: bool = _get_bool("ENABLE_TICKER_FILTER", True)  # Only NASDAQ & S&P 500
+    
+    # Trading Signals (NEW!)
+    enable_trading_signals: bool = _get_bool("ENABLE_TRADING_SIGNALS", False)  # Trading signals system
+    signals_min_confidence: int = int(os.getenv("SIGNALS_MIN_CONFIDENCE", "75"))  # Min confidence %
+    signals_style: str = os.getenv("SIGNALS_STYLE", "rich")  # "rich", "compact", "console"
 
     # Telegram
     enable_telegram: bool = _get_bool("ENABLE_TELEGRAM", False)

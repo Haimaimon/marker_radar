@@ -54,6 +54,19 @@ class TelegramNotifier:
         except Exception as e:
             logger.error(f"Failed to send notification for {item.ticker or 'N/A'}: {e}", exc_info=True)
     
+    def send_html(self, html_message: str) -> None:
+        """
+        Send pre-formatted HTML message (for trading signals).
+        
+        Args:
+            html_message: HTML-formatted message
+        """
+        try:
+            self._send_message(html_message)
+            logger.info("HTML message sent successfully")
+        except Exception as e:
+            logger.error(f"Failed to send HTML message: {e}", exc_info=True)
+    
     def _format_message(self, item: NewsItem) -> str:
         """Format NewsItem as rich HTML message"""
         # Emoji based on score
