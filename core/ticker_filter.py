@@ -137,11 +137,23 @@ class TickerFilter:
         try:
             import pandas as pd
             url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-            tables = pd.read_html(url)
+            
+            # Add headers to avoid 403 Forbidden
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            
+            # Read HTML with custom headers
+            tables = pd.read_html(url, storage_options={'User-Agent': headers['User-Agent']})
             df = tables[0]
             tickers = set(df['Symbol'].str.replace('.', '-').tolist())
             return tickers
         except ImportError:
+            logger.warning("pandas not installed, cannot fetch S&P 500 list")
+            return set()
+        except Exception as e:
+            logger.warning(f"Error fetching S&P 500: {e}")
+            return set()
             # Fallback: use a static API or smaller list
             logger.warning("pandas not available, using alternative method")
             return self._get_sp500_alternative()
