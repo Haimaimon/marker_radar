@@ -122,11 +122,14 @@ class SignalEngine:
     
     Uses technical analysis, price action, volume analysis, and news sentiment
     to generate high-probability trading signals.
+    
+    ⚡ WORKS 24/7: Pre-market, Regular hours, After-hours!
+    Uses last available market data to generate signals anytime.
     """
     
     def __init__(self):
-        self.min_confidence = 65  # Minimum confidence to generate signal (lowered)
-        self.max_risk_pct = 10.0  # Maximum risk per trade (%) - increased for volatile stocks
+        self.min_confidence = 40  # Minimum confidence (lowered for Pre/Post market)
+        self.max_risk_pct = 15.0  # Maximum risk per trade (%) - higher for volatile Pre/Post
         self.min_rr_ratio = 1.5  # Minimum risk/reward ratio
     
     def analyze_opportunity(
@@ -272,6 +275,7 @@ class SignalEngine:
             confidence += min(impact_score * 0.3, 30)
         
         # Volume spike (+25 points max)
+        # Note: In Pre/Post market, volume might be low or None
         if volume_spike_ratio:
             if volume_spike_ratio >= 5.0:
                 confidence += 25
@@ -280,6 +284,13 @@ class SignalEngine:
             elif volume_spike_ratio >= 2.0:
                 confidence += 15
             elif volume_spike_ratio >= 1.5:
+                confidence += 10
+        elif volume_spike_ratio is None:
+            # Pre/Post market - no volume data
+            # Give partial credit based on news impact
+            if impact_score and impact_score >= 80:
+                confidence += 15  # Strong news compensates for no volume
+            elif impact_score and impact_score >= 60:
                 confidence += 10
         
         # Price gap (+20 points max)

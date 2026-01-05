@@ -69,11 +69,16 @@ class SignalsIntegration:
         
         try:
             # Get market data snapshot
+            # Note: Works with last available data (Pre/Post/Regular market)
             snapshot = self.market_data.get_snapshot(item.ticker)
             
             if not snapshot or not snapshot.price:
-                logger.warning(f"No market data for {item.ticker}")
+                logger.warning(f"No market data for {item.ticker} - skipping signal")
                 return None
+            
+            # Use last available data (even if market closed)
+            # This allows signals in Pre-market and After-hours!
+            logger.debug(f"Got market data for {item.ticker}: price=${snapshot.price}")
             
             # Parse news time
             news_time = None
@@ -85,20 +90,24 @@ class SignalsIntegration:
                     news_time = datetime.now()
             
             # Generate signal
-            # Note: MarketSnapshot doesn't have high/low data, so we estimate based on price movement
-            # TODO: Future improvement - fetch actual OHLC data from provider for accurate high/low
+            # Note: Works with LAST AVAILABLE data (Pre/Post/Regular market)
+            # This allows signal generation 24/7 based on latest known prices!
             current_price = snapshot.price
             prev_close = snapshot.prev_close if snapshot.prev_close else current_price
             
-            # Estimate high/low from price movement (rough approximation)
-            # This provides reasonable estimates for signal generation
+            # Estimate high/low from price movement
+            # Works with last available data even if market is closed
             if current_price and prev_close:
                 price_change = abs(current_price - prev_close)
-                estimated_high = max(current_price, prev_close) + (price_change * 0.1)
-                estimated_low = min(current_price, prev_close) - (price_change * 0.05)
+                # Conservative estimates for Pre/Post market
+                estimated_high = max(current_price, prev_close) + (price_change * 0.15)
+                estimated_low = min(current_price, prev_close) - (price_change * 0.1)
             else:
-                estimated_high = current_price
-                estimated_low = current_price
+                # Use small range if no previous data
+                estimated_high = current_price * 1.02  # +2%
+                estimated_low = current_price * 0.98   # -2%
+            
+            logger.debug(f"Price data for {item.ticker}: current=${current_price:.2f}, prev_close=${prev_close:.2f}")
             
             signal = self.signal_engine.analyze_opportunity(
                 ticker=item.ticker,
