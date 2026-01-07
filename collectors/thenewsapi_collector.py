@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import List
 import logging
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from core.models import NewsItem
 
 logger = logging.getLogger("market_radar.thenewsapi")
@@ -67,7 +67,7 @@ class TheNewsAPICollector:
         
         try:
             # Get news from last 24 hours
-            published_after = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d")
+            published_after = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%d")
             
             params = {
                 "api_token": self.api_token,
@@ -107,7 +107,7 @@ class TheNewsAPICollector:
                     continue
             
             logger.info(f"📰 TheNewsAPI: fetched {len(items)} news items")
-            self._last_fetch_time = datetime.now()
+            self._last_fetch_time = datetime.now(timezone.utc)
             
             return items
             

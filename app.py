@@ -61,7 +61,7 @@ def main():
     logger.info(f"Validation: min_gap_pct={settings.min_gap_pct}, min_vol_spike={settings.min_vol_spike}")
     logger.info(f"Verbose logging: {'ENABLED' if settings.verbose_logging else 'DISABLED'}")
     logger.info(f"Date filtering: {'TODAY ONLY' if settings.only_today_news else 'ALL DATES'}")
-    logger.info(f"Today's date: {get_today()}")
+    logger.info(f"Today's date (Israel): {get_today('Asia/Jerusalem')}")
 
     store = SQLiteStore("market_radar.db")
     
@@ -259,7 +259,7 @@ def main():
             logger.info(f"📥 Fetched {len(items)} total items from all sources")
 
             for item in items:
-                item.uid = make_uid(item.title, item.link)
+                item.uid = make_uid(item.title, item.link, item.published)
                 
                 if store.exists(item.uid):
                     stats["duplicates"] += 1
@@ -267,10 +267,10 @@ def main():
                         logger.debug(f"⏭️  SKIP (duplicate): {item.title[:60]}...")
                     continue
                 
-                # Date filtering: Only today's news
+                # Date filtering: Only today's news (Israel time)
                 if settings.only_today_news and item.published:
-                    if not is_today(item.published):
-                        age_days = get_age_in_days(item.published)
+                    if not is_today(item.published, tz_name="Asia/Jerusalem"):
+                        age_days = get_age_in_days(item.published, tz_name="Asia/Jerusalem")
                         if settings.verbose_logging:
                             logger.debug(f"📅 SKIP (old news, {age_days} days): {item.title[:60]}...")
                         continue

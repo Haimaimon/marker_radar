@@ -2,6 +2,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Optional
 from core.models import NewsItem
+from utils.date_utils import parse_datetime_utc
 
 class SQLiteStore:
     def __init__(self, db_path: str = "market_radar.db"):
@@ -20,6 +21,7 @@ class SQLiteStore:
                 title TEXT,
                 link TEXT,
                 published TEXT,
+                published_utc TEXT,        -- ✅ חדש
                 ticker TEXT,
                 impact_score INTEGER,
                 impact_reason TEXT,
@@ -32,20 +34,34 @@ class SQLiteStore:
             """)
             c.commit()
 
+            # ✅ migrate old DBs (add published_utc if missing)
+            cols = {row[1] for row in c.execute("PRAGMA table_info(events)").fetchall()}
+            if "published_utc" not in cols:
+                c.execute("ALTER TABLE events ADD COLUMN published_utc TEXT")
+                c.commit()
     def exists(self, uid: str) -> bool:
         with self._conn() as c:
             row = c.execute("SELECT 1 FROM events WHERE uid = ? LIMIT 1", (uid,)).fetchone()
             return row is not None
 
     def save(self, item: NewsItem) -> None:
+        # try to convert item.published -> utc string (best effort)
+        published_utc = ""
+        try:
+            from utils.date_utils import parse_datetime_utc
+            dt = parse_datetime_utc(item.published) if item.published else None
+            published_utc = dt.isoformat() if dt else ""
+        except Exception:
+            published_utc = ""
+
         with self._conn() as c:
             c.execute("""
             INSERT OR IGNORE INTO events
-            (uid, source, title, link, published, ticker, impact_score, impact_reason,
+            (uid, source, title, link, published, published_utc, ticker, impact_score, impact_reason,
              validated, validation_reason, gap_pct, vol_spike)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                item.uid, item.source, item.title, item.link, item.published,
+                item.uid, item.source, item.title, item.link, item.published, published_utc,
                 item.ticker, item.impact_score, item.impact_reason,
                 1 if item.validated else 0, item.validation_reason,
                 item.gap_pct, item.vol_spike
@@ -63,7 +79,6 @@ class SQLiteStore:
             Number of rows deleted
         """
         with self._conn() as c:
-            # Delete records older than N days based on created_at
             result = c.execute("""
                 DELETE FROM events 
                 WHERE created_at < datetime('now', ? || ' days')
@@ -71,7 +86,7 @@ class SQLiteStore:
             deleted = result.rowcount
             c.commit()
             return deleted
-    
+            
     def get_stats(self) -> dict:
         """Get database statistics"""
         with self._conn() as c:

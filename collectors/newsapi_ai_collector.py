@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import List
 import logging
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from core.models import NewsItem
 
 logger = logging.getLogger("market_radar.newsapi_ai")
@@ -172,7 +172,7 @@ class NewsAPIaiCollector:
         if date_time:
             try:
                 dt = datetime.fromisoformat(date_time.replace("Z", "+00:00"))
-                published = dt.strftime("%Y-%m-%d %H:%M:%S")
+                published = dt.astimezone(timezone.utc).isoformat()
             except:
                 published = date_time
         else:

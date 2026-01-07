@@ -8,7 +8,7 @@ WITHOUT modifying existing code.
 from __future__ import annotations
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from signals.signal_engine import SignalEngine, TradingSignal
 from signals.signal_formatter import SignalFormatter
@@ -84,10 +84,10 @@ class SignalsIntegration:
             news_time = None
             if item.published:
                 try:
-                    from utils.date_utils import parse_date
-                    news_time = parse_date(item.published)
+                    from utils.date_utils import parse_datetime_utc
+                    news_time = parse_datetime_utc(item.published)  # ✅ datetime UTC aware
                 except:
-                    news_time = datetime.now()
+                    news_time = datetime.now(timezone.utc)
             
             # Generate signal
             # Note: Works with LAST AVAILABLE data (Pre/Post/Regular market)

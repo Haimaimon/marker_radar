@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import List
 import logging
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from core.models import NewsItem
 
 logger = logging.getLogger("market_radar.alpha_vantage")
@@ -164,8 +164,8 @@ class AlphaVantageCollector:
         try:
             # Format: 20251229T123000 → 2025-12-29 12:30:00
             if time_published:
-                dt = datetime.strptime(time_published, "%Y%m%dT%H%M%S")
-                published = dt.strftime("%Y-%m-%d %H:%M:%S")
+                dt = datetime.strptime(time_published, "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+                published = dt.isoformat()
             else:
                 published = ""
         except:

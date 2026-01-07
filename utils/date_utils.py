@@ -1,201 +1,215 @@
+# utils/date_utils.py
 """
-Date utilities for filtering and validating news by date
+Date/time utilities for Market Radar.
+
+Key rule:
+- Internally work with timezone-aware datetimes in UTC.
+- Convert to local timezone (e.g., Asia/Jerusalem) only for display.
+
+Fixes:
+- Correct parsing of RSS RFC822 dates like: "Wed, 07 Jan 2026 07:45 GMT"
+- Prevent losing time by returning date-only objects (used previously)
+- Accurate "within hours" checks
 """
 
 from __future__ import annotations
-from datetime import datetime, date, timedelta
+
+from datetime import datetime, date, timedelta, timezone
 from typing import Optional
 import logging
 import re
+from email.utils import parsedate_to_datetime
 
 logger = logging.getLogger("market_radar.date_utils")
 
+try:
+    # Python 3.9+
+    from zoneinfo import ZoneInfo
+except Exception:
+    ZoneInfo = None
 
-def get_today() -> date:
-    """Get today's date"""
-    return datetime.now().date()
+
+def now_utc() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
-def is_today(date_string: str) -> bool:
+def parse_datetime_utc(date_string: str) -> Optional[datetime]:
     """
-    Check if a date string represents today
-    
-    Supports formats:
-    - ISO: 2025-12-29, 2025-12-29T10:30:00
-    - US: 12/29/2025
-    - Descriptive: Dec 29, 2025
-    - Relative: Today, yesterday
-    
-    Args:
-        date_string: Date string to check
-    
+    Parse many date formats into an AWARE datetime in UTC.
+
+    Supports:
+    - RSS RFC822: 'Wed, 07 Jan 2026 07:45 GMT'
+    - ISO8601: '2026-01-07T07:45:00Z' / '2026-01-07T07:45:00+00:00'
+    - Common date/time strings you already used (AlphaVantage etc.)
+    - Falls back to regex date parsing if needed
+
     Returns:
-        True if the date is today, False otherwise
+        datetime (tz-aware, UTC) or None if parsing fails
     """
-    if not date_string:
-        # No date = assume recent, allow through
-        return True
-    
+    if not date_string or not isinstance(date_string, str):
+        return None
+
+    s = date_string.strip()
+    low = s.lower()
+
+    # Relative-ish strings (best effort)
+    if "today" in low:
+        return now_utc()
+    if "yesterday" in low:
+        return now_utc() - timedelta(days=1)
+    if "ago" in low:
+        # Can't know exact delta reliably without NLP.
+        # Don't block item; treat as recent.
+        return now_utc()
+
+    # 1) RSS RFC822 / email-style timestamps (BEST for RSS feeds)
     try:
-        parsed_date = parse_date(date_string)
-        if parsed_date:
-            return parsed_date == get_today()
-    except Exception as e:
-        logger.debug(f"Could not parse date '{date_string}': {e}")
-    
-    # If can't parse, allow through (don't filter)
-    return True
+        dt = parsedate_to_datetime(s)
+        if dt is not None:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+    except Exception:
+        pass
+
+    # 2) ISO8601 (with Z or offset)
+    try:
+        iso = s
+        if iso.endswith("Z"):
+            iso = iso[:-1] + "+00:00"
+        dt = datetime.fromisoformat(iso)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        pass
+
+    # 3) Older supported formats (keep compatibility)
+    formats = [
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y%m%dT%H%M%S",  # Alpha Vantage
+        "%Y-%m-%d",
+        "%m/%d/%Y",
+        "%d/%m/%Y",
+        "%b %d, %Y",
+        "%B %d, %Y",
+    ]
+
+    for fmt in formats:
+        try:
+            # Keep original behavior: if only a date exists, time becomes 00:00
+            dt = datetime.strptime(s, fmt)
+            return dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+
+    # 4) Regex fallback for YYYY-MM-DD or YYYY/MM/DD embedded in text
+    pattern = r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})"
+    match = re.search(pattern, s)
+    if match:
+        try:
+            y, m, d = map(int, match.groups())
+            return datetime(y, m, d, tzinfo=timezone.utc)
+        except Exception:
+            pass
+
+    logger.debug(f"Failed to parse date string: {date_string}")
+    return None
 
 
 def parse_date(date_string: str) -> Optional[date]:
     """
-    Parse various date formats into a date object
-    
-    Supports:
-    - ISO: 2025-12-29, 2025-12-29T10:30:00Z
-    - US: 12/29/2025
-    - Timestamp: 20251229T123000
-    - Relative: includes "ago", "yesterday", "today"
-    
-    Args:
-        date_string: String containing a date
-    
-    Returns:
-        date object or None if parsing fails
+    Backward-compatible helper:
+    returns ONLY date, based on parse_datetime_utc().
+
+    Note:
+    Prefer parse_datetime_utc() wherever you care about hours/minutes.
     """
-    if not date_string or not isinstance(date_string, str):
-        return None
-    
-    date_string = date_string.strip()
-    
-    # Check for relative dates
-    if "today" in date_string.lower():
-        return get_today()
-    
-    if "yesterday" in date_string.lower():
-        return get_today() - timedelta(days=1)
-    
-    # Check for "X hours/minutes ago"
-    if "ago" in date_string.lower():
-        # Assume recent if mentioned as "ago"
-        return get_today()
-    
-    # Try common formats
-    formats = [
-        "%Y-%m-%d",                    # 2025-12-29
-        "%Y-%m-%dT%H:%M:%S",          # 2025-12-29T10:30:00
-        "%Y-%m-%dT%H:%M:%SZ",         # 2025-12-29T10:30:00Z
-        "%Y-%m-%dT%H:%M:%S.%f",       # 2025-12-29T10:30:00.123
-        "%Y-%m-%dT%H:%M:%S.%fZ",      # 2025-12-29T10:30:00.123Z
-        "%Y-%m-%d %H:%M:%S",          # 2025-12-29 10:30:00
-        "%m/%d/%Y",                    # 12/29/2025
-        "%d/%m/%Y",                    # 29/12/2025
-        "%b %d, %Y",                   # Dec 29, 2025
-        "%B %d, %Y",                   # December 29, 2025
-        "%Y%m%dT%H%M%S",              # 20251229T123000 (Alpha Vantage)
-    ]
-    
-    for fmt in formats:
-        try:
-            dt = datetime.strptime(date_string[:len(fmt)], fmt)
-            return dt.date()
-        except (ValueError, IndexError):
-            continue
-    
-    # Try parsing ISO format with timezone
-    try:
-        if "T" in date_string:
-            # Remove timezone info
-            date_part = date_string.split("T")[0]
-            return datetime.strptime(date_part, "%Y-%m-%d").date()
-    except:
-        pass
-    
-    # Try extracting date with regex
-    # Pattern: YYYY-MM-DD or YYYY/MM/DD
-    pattern = r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})"
-    match = re.search(pattern, date_string)
-    if match:
-        try:
-            year, month, day = match.groups()
-            return date(int(year), int(month), int(day))
-        except:
-            pass
-    
-    return None
+    dt = parse_datetime_utc(date_string)
+    return dt.date() if dt else None
 
 
-def get_date_range_today() -> tuple[datetime, datetime]:
+def is_within_days(date_string: str, days: int = 7) -> bool:
     """
-    Get datetime range for today (00:00 to 23:59)
-    
-    Returns:
-        Tuple of (start_of_day, end_of_day)
+    Check if a date_string is within the last X days (UTC).
+
+    This is safe for older use cases (days-based filters).
     """
-    today = get_today()
-    start = datetime.combine(today, datetime.min.time())
-    end = datetime.combine(today, datetime.max.time())
-    return start, end
-
-
-def format_date_for_api(d: date) -> str:
-    """Format date for API queries (YYYY-MM-DD)"""
-    return d.strftime("%Y-%m-%d")
-
-
-def get_age_in_days(date_string: str) -> Optional[int]:
-    """
-    Calculate how many days old a date string is
-    
-    Args:
-        date_string: Date string to check
-    
-    Returns:
-        Number of days old, or None if can't parse
-    """
-    parsed = parse_date(date_string)
-    if parsed:
-        return (get_today() - parsed).days
-    return None
+    dt = parse_datetime_utc(date_string)
+    if not dt:
+        return True  # don't block if unknown
+    age = now_utc() - dt
+    return age <= timedelta(days=days)
 
 
 def is_within_hours(date_string: str, hours: int = 24) -> bool:
     """
-    Check if date is within the last N hours
-    
-    Args:
-        date_string: Date string to check
-        hours: Number of hours to check within
-    
-    Returns:
-        True if within the time window
+    FIXED:
+    Check if a date_string is within the last X hours (UTC).
     """
-    age_days = get_age_in_days(date_string)
-    if age_days is None:
-        return True  # Can't determine, allow through
-    
-    return age_days * 24 <= hours
+    dt = parse_datetime_utc(date_string)
+    if not dt:
+        return True  # don't block if unknown
+    age_seconds = (now_utc() - dt).total_seconds()
+    return age_seconds <= (hours * 3600)
 
 
-# For testing
-if __name__ == "__main__":
-    test_dates = [
-        "2025-12-29",
-        "2025-12-29T10:30:00",
-        "2025-12-28",
-        "Today",
-        "Yesterday",
-        "2 hours ago",
-        "Dec 29, 2025",
-        "20251229T123000",
-        "12/29/2025",
-    ]
-    
-    print(f"Today is: {get_today()}")
-    print("\nTesting dates:")
-    for test_date in test_dates:
-        parsed = parse_date(test_date)
-        is_today_result = is_today(test_date)
-        age = get_age_in_days(test_date)
-        print(f"  {test_date:30} → {parsed} | Today: {is_today_result} | Age: {age} days")
+def format_dt_for_display(dt_utc: Optional[datetime], tz_name: str = "Asia/Jerusalem") -> str:
+    """
+    Convert a UTC datetime into a display string in the requested timezone.
 
+    If ZoneInfo is unavailable, it returns UTC formatted string.
+    """
+    if not dt_utc:
+        return ""
+
+    if dt_utc.tzinfo is None:
+        dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+
+    if ZoneInfo:
+        local_dt = dt_utc.astimezone(ZoneInfo(tz_name))
+    else:
+        local_dt = dt_utc  # fallback to UTC
+
+    return local_dt.strftime("%a, %d %b %Y %H:%M:%S %Z")
+
+
+def format_date(date_obj: Optional[date]) -> str:
+    """Format date as a readable string (kept for compatibility)."""
+    if not date_obj:
+        return ""
+    return date_obj.strftime("%Y-%m-%d")
+
+def today_in_tz(tz_name: str = "Asia/Jerusalem") -> date:
+    dt = now_utc()
+    if ZoneInfo:
+        return dt.astimezone(ZoneInfo(tz_name)).date()
+    return dt.date()  # fallback UTC
+
+
+def is_today(date_string: str, tz_name: str = "Asia/Jerusalem") -> bool:
+    dt = parse_datetime_utc(date_string)
+    if not dt:
+        return True  # if unknown, don't block
+    if ZoneInfo:
+        local_dt = dt.astimezone(ZoneInfo(tz_name))
+        return local_dt.date() == today_in_tz(tz_name)
+    # fallback UTC
+    return dt.date() == now_utc().date()
+
+
+def get_age_in_days(date_string: str, tz_name: str = "Asia/Jerusalem") -> int:
+    dt = parse_datetime_utc(date_string)
+    if not dt:
+        return 0
+    if ZoneInfo:
+        local_date = dt.astimezone(ZoneInfo(tz_name)).date()
+        return (today_in_tz(tz_name) - local_date).days
+    return (now_utc().date() - dt.date()).days
+
+
+def get_today(tz_name: str = "Asia/Jerusalem") -> str:
+    return str(today_in_tz(tz_name))

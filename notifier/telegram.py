@@ -108,7 +108,13 @@ class TelegramNotifier:
         
         # Add timestamp if available
         if item.published:
-            parts.append(f"🕒 {self._escape_html(item.published)}")
+            try:
+                from utils.date_utils import parse_datetime_utc, format_dt_for_display
+                dt_utc = parse_datetime_utc(item.published)
+                pretty = format_dt_for_display(dt_utc, "Asia/Jerusalem")  # ✅ ישראל
+                parts.append(f"🕒 {self._escape_html(pretty)}")
+            except Exception:
+                parts.append(f"🕒 {self._escape_html(item.published)}")
         
         # Add link
         parts.append(f"\n🔗 <a href=\"{item.link}\">Read Full Article</a>")
