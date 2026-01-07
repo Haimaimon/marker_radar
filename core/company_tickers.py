@@ -13,7 +13,7 @@ from typing import Dict, Set
 COMPANY_TO_TICKER: Dict[str, str] = {
     # FAANG / Mag 7
     "apple": "AAPL",
-    "amazon": "AMZN", 
+    "amazon": "AMZN",
     "alphabet": "GOOGL",
     "google": "GOOGL",
     "microsoft": "MSFT",
@@ -22,7 +22,7 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "netflix": "NFLX",
     "nvidia": "NVDA",
     "tesla": "TSLA",
-    
+
     # Other Tech Giants
     "adobe": "ADBE",
     "salesforce": "CRM",
@@ -44,9 +44,8 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "palantir": "PLTR",
     "shopify": "SHOP",
     "square": "SQ",
-    "block": "SQ",  # Square rebranded to Block
+    "block": "SQ",
     "paypal": "PYPL",
-    "stripe": "STRIPE",  # Private but often mentioned
     "uber": "UBER",
     "lyft": "LYFT",
     "doordash": "DASH",
@@ -60,7 +59,7 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "confluent": "CFLT",
     "unity": "U",
     "roblox": "RBLX",
-    
+
     # Semiconductors
     "asml": "ASML",
     "taiwan semiconductor": "TSM",
@@ -73,12 +72,12 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "on semiconductor": "ON",
     "skyworks": "SWKS",
     "qorvo": "QRVO",
-    
+
     # Cloud/SaaS
-    "aws": "AMZN",  # Amazon Web Services
-    "azure": "MSFT",  # Microsoft Azure
-    "gcp": "GOOGL",  # Google Cloud Platform
-    
+    "aws": "AMZN",
+    "azure": "MSFT",
+    "gcp": "GOOGL",
+
     # Finance
     "jpmorgan": "JPM",
     "jp morgan": "JPM",
@@ -92,11 +91,9 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "mastercard": "MA",
     "american express": "AXP",
     "amex": "AXP",
-    "paypal": "PYPL",
-    "square": "SQ",
     "coinbase": "COIN",
     "robinhood": "HOOD",
-    
+
     # Retail/Consumer
     "walmart": "WMT",
     "target": "TGT",
@@ -109,7 +106,7 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "mcdonalds": "MCD",
     "chipotle": "CMG",
     "yum brands": "YUM",
-    
+
     # Healthcare/Pharma
     "johnson & johnson": "JNJ",
     "johnson and johnson": "JNJ",
@@ -134,6 +131,81 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "thermo fisher": "TMO",
     "danaher": "DHR",
     
+    # ✅ NEW: GSK mapping (your case)
+    "glaxo smith kline": "GSK",
+    # =========================
+    # Healthcare / Medical Imaging
+    # =========================
+    "radnet": "RDNT",
+    "rad net": "RDNT",
+    "radnet inc": "RDNT",
+
+    "envision healthcare": "EHC",
+    "mednax": "MD",
+    "us radiology specialists": "USRS",
+    "akumin": "AKU",
+    "lucidhealth": "LUCID",
+    "rayus radiology": "RAYUS",
+
+    # =========================
+    # Healthcare Providers / Hospitals
+    # =========================
+    "hca healthcare": "HCA",
+    "tenet healthcare": "THC",
+    "community health systems": "CYH",
+    "universal health services": "UHS",
+    "select medical": "SEM",
+    "lifepoint health": "LPNT",
+
+    # =========================
+    # Medical Devices
+    # =========================
+    "ge healthcare": "GEHC",
+    "siemens healthineers": "SHL",
+    "philips healthcare": "PHG",
+    "stryker": "SYK",
+    "zimmer biomet": "ZBH",
+    "becton dickinson": "BDX",
+    "boston scientific": "BSX",
+    "medtronic": "MDT",
+    "abbott laboratories": "ABT",
+    "edwards lifesciences": "EW",
+
+    # =========================
+    # Pharma / Biotech (common in press releases)
+    # =========================
+    "glaxosmithkline": "GSK",
+    "gsk": "GSK",
+    "sanofi": "SNY",
+    "astrazeneca": "AZN",
+    "novartis": "NVS",
+    "roche": "RHHBY",
+    "takeda": "TAK",
+    "bayer": "BAYRY",
+    "pfizer": "PFE",
+    "eli lilly": "LLY",
+    "bristol myers squibb": "BMY",
+    "merck": "MRK",
+    "abbvie": "ABBV",
+    "gilead sciences": "GILD",
+    "vertex pharmaceuticals": "VRTX",
+    "regeneron pharmaceuticals": "REGN",
+    "biogen": "BIIB",
+
+    # =========================
+    # Small / Mid-cap Biotech (high-impact news)
+    # =========================
+    "ionis pharmaceuticals": "IONS",
+    "alnylam pharmaceuticals": "ALNY",
+    "bluebird bio": "BLUE",
+    "sarepta therapeutics": "SRPT",
+    "crispr therapeutics": "CRSP",
+    "beam therapeutics": "BEAM",
+    "intellia therapeutics": "NTLA",
+    "editas medicine": "EDIT",
+    "moderna": "MRNA",
+    "biontech": "BNTX",
+
     # Automotive
     "ford": "F",
     "general motors": "GM",
@@ -144,7 +216,7 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "nio": "NIO",
     "xpeng": "XPEV",
     "li auto": "LI",
-    
+
     # Energy
     "exxon": "XOM",
     "exxonmobil": "XOM",
@@ -154,21 +226,19 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "halliburton": "HAL",
     "occidental": "OXY",
     "marathon": "MRO",
-    "pioneer": "PXD",
     "enphase": "ENPH",
     "solaredge": "SEDG",
     "first solar": "FSLR",
     "plug power": "PLUG",
     "bloom energy": "BE",
-    
+
     # Aerospace/Defense
     "boeing": "BA",
     "lockheed martin": "LMT",
     "northrop grumman": "NOC",
     "raytheon": "RTX",
     "general dynamics": "GD",
-    "spacex": "SPACE",  # Private
-    
+
     # Telecom/Media
     "att": "T",
     "at&t": "T",
@@ -177,40 +247,32 @@ COMPANY_TO_TICKER: Dict[str, str] = {
     "tmobile": "TMUS",
     "comcast": "CMCSA",
     "disney": "DIS",
-    "warner bros": "WBD",
-    "paramount": "PARA",
     "spotify": "SPOT",
     "roku": "ROKU",
-    
+
     # E-commerce/Marketplace
     "ebay": "EBAY",
     "etsy": "ETSY",
     "wayfair": "W",
     "chewy": "CHWY",
     "carvana": "CVNA",
-    
+
     # Gaming
-    "activision": "ATVI",
     "electronic arts": "EA",
     "ea": "EA",
     "take-two": "TTWO",
-    "roblox": "RBLX",
-    
+
     # Crypto-related
     "microstrategy": "MSTR",
     "marathon digital": "MARA",
     "riot platforms": "RIOT",
-    "coinbase": "COIN",
-    
+
     # Chinese ADRs
     "alibaba": "BABA",
-    "tencent": "TCEHY",
     "jd.com": "JD",
     "jd": "JD",
     "baidu": "BIDU",
-    "pinduoduo": "PDD",
-    "bilibili": "BILI",
-    
+
     # Other Notable
     "berkshire hathaway": "BRK.B",
     "berkshire": "BRK.B",
@@ -225,7 +287,6 @@ COMPANY_TO_TICKER: Dict[str, str] = {
 }
 
 # Aliases: alternative names that map to the same ticker
-# These are checked after primary mapping
 ALIASES: Dict[str, str] = {
     "msft": "MSFT",
     "aapl": "AAPL",
@@ -236,21 +297,24 @@ ALIASES: Dict[str, str] = {
     "nflx": "NFLX",
     "nvda": "NVDA",
     "tsla": "TSLA",
-    
+
     # Common abbreviations
-    "ms": "MSFT",
     "aws": "AMZN",
     "jnj": "JNJ",
     "bac": "BAC",
-    "jpmorgan chase": "JPM",
     "bofa": "BAC",
-    
+    "jpmorgan chase": "JPM",
+
     # Brand variations
     "meta platforms": "META",
     "alphabet inc": "GOOGL",
     "amazon.com": "AMZN",
     "amazon web services": "AMZN",
-    
+
+    # ✅ NEW: GSK aliases
+    "gsk plc": "GSK",
+    "glaxosmithkline plc": "GSK",
+
     # Common misspellings
     "appl": "AAPL",
     "microsft": "MSFT",
@@ -279,46 +343,34 @@ BLACKLIST: Set[str] = {
     "nyse", "nasdaq", "amex", "otc",
 }
 
-
 def normalize_company_name(name: str) -> str:
     """
-    Normalize a company name for matching
-    
+    Normalize a company name for matching.
+
     - Convert to lowercase
     - Remove punctuation
     - Remove common suffixes (Inc, Corp, etc.)
     - Strip whitespace
-    
-    Example:
-        "Apple Inc." → "apple"
-        "Johnson & Johnson" → "johnson johnson"
     """
     if not name:
         return ""
-    
-    # Lowercase
+
     name = name.lower()
-    
-    # Remove punctuation but keep spaces
+
     import string
     for char in string.punctuation:
         name = name.replace(char, " ")
-    
-    # Split into words and filter
+
     words = name.split()
     filtered = [w for w in words if w not in STOP_WORDS and len(w) > 1]
-    
     return " ".join(filtered)
 
-
 def get_all_tickers() -> Set[str]:
-    """Get set of all known ticker symbols"""
+    """Get set of all known ticker symbols."""
     tickers = set(COMPANY_TO_TICKER.values())
     tickers.update(ALIASES.values())
     return tickers
 
-
 def get_company_names() -> Set[str]:
-    """Get set of all known company names"""
+    """Get set of all known company names."""
     return set(COMPANY_TO_TICKER.keys())
-

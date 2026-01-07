@@ -63,6 +63,8 @@ def main():
     logger.info(f"Date filtering: {'TODAY ONLY' if settings.only_today_news else 'ALL DATES'}")
     logger.info(f"Today's date (Israel): {get_today('Asia/Jerusalem')}")
 
+    NO_TICKER_NOTIFY_SCORE = settings.no_ticker_notify_score
+
     store = SQLiteStore("market_radar.db")
     
     # Initialize Market Data Manager with multiple providers
@@ -301,7 +303,31 @@ def main():
 
                 # 2) Impact Scoring
                 item.impact_score, item.impact_reason = score(item.source, item.title, item.summary)
-                
+
+                # ✅ NEW: High impact but no ticker → still notify (optional)
+                if not item.ticker:
+                    stats["no_ticker"] += 1  # count it
+                    # אם ה-score חזק – נשלח למרות שאין טיקר
+                    if item.impact_score >= NO_TICKER_NOTIFY_SCORE:
+                        item.validated = True  # allow notify pipeline
+                        item.validation_reason = "no-ticker (high-impact)"
+                        store.save(item)
+
+                        stats["notified"] += 1
+                        for n in notifiers:
+                            n.notify(item)
+
+                        if settings.verbose_logging:
+                            logger.debug(
+                                f"✅ NOTIFIED (NO TICKER, HIGH IMPACT {item.impact_score}): {item.title[:70]}..."
+                            )
+                    else:
+                        # לא מספיק חזק - רק נשמור להיסטוריה
+                        store.save(item)
+
+                    continue  # ⬅️ חשוב: אין טיקר => אין validation => עוברים לידיעה הבאה
+
+                # אם יש טיקר, ממשיכים רגיל
                 if item.impact_score < settings.min_impact_score:
                     stats["low_score"] += 1
                     if settings.verbose_logging:
@@ -309,16 +335,15 @@ def main():
                             f"❌ LOW SCORE ({item.impact_score}): "
                             f"{item.ticker or 'N/A'} - {item.title[:50]}... | Reason: {item.impact_reason}"
                         )
-                    store.save(item)  # keep history if you want
+                    store.save(item)
                     continue
-                
+
                 stats["high_score"] += 1
                 if settings.verbose_logging:
                     logger.debug(
                         f"✅ HIGH SCORE ({item.impact_score}): "
                         f"{item.ticker or 'N/A'} - {item.title[:50]}... | Reason: {item.impact_reason}"
                     )
-
                 # 3) Market Validation (gap/volume) - optional
                 if settings.enable_market_validation and item.ticker:
                     try:

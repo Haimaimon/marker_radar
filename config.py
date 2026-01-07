@@ -60,6 +60,8 @@ class Settings:
     signals_min_confidence: int = int(os.getenv("SIGNALS_MIN_CONFIDENCE", "75"))  # Min confidence %
     signals_style: str = os.getenv("SIGNALS_STYLE", "rich")  # "rich", "compact", "console"
 
+    no_ticker_notify_score: int = int(os.getenv("NO_TICKER_NOTIFY_SCORE", "65"))
+
     # Telegram
     enable_telegram: bool = _get_bool("ENABLE_TELEGRAM", False)
     telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
