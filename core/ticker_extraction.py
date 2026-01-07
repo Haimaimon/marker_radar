@@ -4,148 +4,124 @@ import re
 from typing import Optional
 
 from .company_tickers import (
-    COMPANY_TO_TICKER,
-    ALIASES,
+    get_company_to_ticker,
+    get_aliases,
     BLACKLIST,
     normalize_company_name,
     get_all_tickers,
 )
 
-# Patterns for explicit ticker mentions
-EXCHANGE_TICKER = re.compile(r"\b(?:NASDAQ|NYSE|AMEX|OTC):\s*([A-Z]{1,5}(?:[.-][A-Z]{1,2})?)\b")
-PAREN_TICKER = re.compile(r"\(([A-Z]{1,5}(?:[.-][A-Z]{1,2})?)\)")
-DOLLAR_TICKER = re.compile(r"\$([A-Z]{1,5}(?:[.-][A-Z]{1,2})?)\b")
-ALLCAPS_TOKEN = re.compile(r"\b([A-Z]{2,5}(?:[.-][A-Z]{1,2})?)\b")
+# Supports: BRK.B, BRK-B, BF.A, etc.
+TICKER_RE = r"[A-Z]{1,6}(?:[.\-][A-Z]{1,2})?"
 
-# Cache for known tickers
-_KNOWN_TICKERS = get_all_tickers()
+# ✅ Accept common exchange prefixes (case-insensitive) + variants
+EXCHANGE_TICKER = re.compile(
+    rf"\b(?:NASDAQ|NYSE|AMEX|OTC|NYSE\s+AMERICAN|NASDAQ\s+CM|NASDAQ\s+GM|NASDAQ\s+GS)\s*:\s*({TICKER_RE})\b",
+    re.IGNORECASE,
+)
 
-# Pre-sorted keys (longest first = less false positives)
-_COMPANY_KEYS = sorted(COMPANY_TO_TICKER.keys(), key=len, reverse=True)
-_ALIAS_KEYS = sorted(ALIASES.keys(), key=len, reverse=True)
+# ✅ (RDNT) or ( RDNT )
+PAREN_TICKER = re.compile(rf"\(\s*({TICKER_RE})\s*\)")
 
-# Compile phrase regex cache for speed
-_PHRASE_REGEX_CACHE: dict[str, re.Pattern] = {}
+# ✅ $RDNT
+DOLLAR_TICKER = re.compile(rf"\$\s*({TICKER_RE})\b")
 
-def _phrase_regex(phrase: str) -> re.Pattern:
-    # word-boundary safe match for phrases, cached
-    pat = _PHRASE_REGEX_CACHE.get(phrase)
-    if pat:
-        return pat
-    pat = re.compile(r"\b" + re.escape(phrase) + r"\b", flags=re.IGNORECASE)
-    _PHRASE_REGEX_CACHE[phrase] = pat
-    return pat
+# ✅ Delimited tokens like: "RadNet - RDNT" / "RadNet | RDNT" / "RadNet – RDNT"
+DELIM_TICKER = re.compile(rf"(?:\s[-–|]\s)({TICKER_RE})\b")
+
+# ✅ Any token fallback
+ALLCAPS_TOKEN = re.compile(rf"\b({TICKER_RE})\b")
 
 
 def extract_ticker(title: str, summary: str) -> Optional[str]:
-    """
-    Extract ticker symbol from text using multiple strategies:
+    text = f"{title} {summary}"
 
-    1. Explicit formats: NASDAQ:AAPL, (AAPL), $AAPL
-    2. Company name matching: "GlaxoSmithKline" → GSK
-    3. Alias matching: "GSK plc" → GSK
-    4. ALL-CAPS fallback: "NVDA beats earnings" → NVDA
+    known_tickers = get_all_tickers()
+    company_map = get_company_to_ticker()
+    aliases = get_aliases()
 
-    Returns the first match found, or None
-    """
-    text = f"{title} {summary}".strip()
-    if not text:
-        return None
+    # Helper: validate candidate
+    def _valid(cand: str) -> bool:
+        if not cand:
+            return False
+        c = cand.upper().strip()
+        if c.lower() in BLACKLIST:
+            return False
+        return c in known_tickers
 
-    # Strategy 1: Explicit exchange prefix (highest confidence)
+    # 1) Explicit exchange (highest confidence)
     m = EXCHANGE_TICKER.search(text)
     if m:
-        return _validate_known_ticker(m.group(1))
+        cand = m.group(1)
+        if _valid(cand):
+            return cand.upper()
 
-    # Strategy 2: Parentheses format (high confidence)
+    # 2) Parentheses (high confidence)
     m = PAREN_TICKER.search(text)
     if m:
-        return _validate_known_ticker(m.group(1))
+        cand = m.group(1)
+        if _valid(cand):
+            return cand.upper()
 
-    # Strategy 3: Dollar sign format
+    # 3) $TICKER
     m = DOLLAR_TICKER.search(text)
     if m:
-        return _validate_known_ticker(m.group(1))
+        cand = m.group(1)
+        if _valid(cand):
+            return cand.upper()
 
-    # Strategy 4: Company name / alias mapping (medium confidence)
-    ticker = _match_company_name(text)
+    # 3.5) Delimiter patterns: " - RDNT" / " | RDNT"
+    m = DELIM_TICKER.search(text)
+    if m:
+        cand = m.group(1)
+        if _valid(cand):
+            return cand.upper()
+
+    # 4) Company-name / alias n-grams (best practical)
+    ticker = _match_company_name_ngrams(text, company_map, aliases)
     if ticker:
         return ticker
 
-    # Strategy 5: ALL-CAPS token fallback (lower confidence)
-    m = ALLCAPS_TOKEN.search(text)
-    if m:
-        return _validate_known_ticker(m.group(1))
+    # 5) ALL-CAPS fallback (first valid)
+    return _pick_best_allcaps(text, known_tickers)
 
+
+def _match_company_name_ngrams(
+    text: str,
+    company_map: dict[str, str],
+    aliases: dict[str, str],
+) -> Optional[str]:
+    """
+    Tokenize normalized text and try n-grams (1..6 words).
+    Prefer longest match.
+    """
+    norm = normalize_company_name(text)
+    if not norm:
+        return None
+
+    tokens = norm.split()
+    if not tokens:
+        return None
+
+    max_n = 6
+    for n in range(min(max_n, len(tokens)), 0, -1):
+        for i in range(0, len(tokens) - n + 1):
+            phrase = " ".join(tokens[i : i + n])
+            if phrase in company_map:
+                return company_map[phrase]
+            if phrase in aliases:
+                return aliases[phrase]
     return None
 
 
-def _validate_known_ticker(candidate: str) -> Optional[str]:
-    if not candidate:
-        return None
-    t = candidate.strip().upper()
-    if t in BLACKLIST:
-        return None
-    # only allow if we know it (prevents random ALLCAPS words)
-    if t in _KNOWN_TICKERS:
-        return t
-    return None
-
-
-def _match_company_name(text: str) -> Optional[str]:
+def _pick_best_allcaps(text: str, known_tickers: set[str]) -> Optional[str]:
     """
-    Match company names in text efficiently.
-    - Longest-first matching to avoid partial collisions
-    - Word-boundary aware phrase matching
-    - Normalized fallback as last resort
+    Scan tokens and return the first valid ticker that is not blacklisted.
     """
-    text_lower = text.lower()
-
-    # Exact phrase match (best)
-    for company in _COMPANY_KEYS:
-        if company in BLACKLIST:
+    for m in ALLCAPS_TOKEN.finditer(text):
+        cand = m.group(1).upper().strip()
+        if cand.lower() in BLACKLIST:
             continue
-        if _phrase_regex(company).search(text_lower):
-            return COMPANY_TO_TICKER[company]
-
-    # Alias match
-    for alias in _ALIAS_KEYS:
-        if alias in BLACKLIST:
-            continue
-        if _phrase_regex(alias).search(text_lower):
-            return ALIASES[alias]
-
-    # Normalized fuzzy fallback
-    normalized_text = normalize_company_name(text)
-    if not normalized_text:
-        return None
-
-    for company in _COMPANY_KEYS:
-        normalized_company = normalize_company_name(company)
-        if len(normalized_company) >= 4 and normalized_company in normalized_text:
-            return COMPANY_TO_TICKER[company]
-
+        if cand in known_tickers:
+            return cand
     return None
-
-
-def extract_all_tickers(text: str) -> list[str]:
-    """
-    Extract ALL ticker mentions from text (advanced use).
-    Returns list of unique tickers found.
-    """
-    if not text:
-        return []
-
-    found: list[str] = []
-
-    for pattern in (EXCHANGE_TICKER, PAREN_TICKER, DOLLAR_TICKER):
-        for match in pattern.finditer(text):
-            t = _validate_known_ticker(match.group(1))
-            if t and t not in found:
-                found.append(t)
-
-    t2 = _match_company_name(text)
-    if t2 and t2 not in found:
-        found.append(t2)
-
-    return found
